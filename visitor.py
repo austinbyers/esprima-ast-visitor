@@ -5,6 +5,7 @@ Usage:
         print(node['type'])
         # Do other work with node
 """
+# Austin Byers, 2016
 
 class UnknownNodeTypeError(Exception):
     """Raised if we encounter a node with an unknown type."""

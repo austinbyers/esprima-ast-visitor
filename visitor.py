@@ -93,7 +93,7 @@ def _traverse_SwitchCase(node):
 def _traverse_ThrowStatement(node):
     yield from traverse(node['argument'])
 
-# Note: the "guardedHandlers" and "handlers" fields aren't yet in the spec.
+# Note: the "guardedHandlers" and "handlers" fields aren't in the spec.
 def _traverse_TryStatement(node):
     yield from traverse(node['block'])
     for h in node['guardedHandlers']:
@@ -195,6 +195,8 @@ def _traverse_MemberExpression(node):
     yield from traverse(node['object'])
     yield from traverse(node['property'])
 
+# Note: The spec actually puts the altnerate before the consequent.
+# We use the form that Esprima generates.
 def _traverse_ConditionalExpression(node):
     yield from traverse(node['test'])
     yield from traverse(node['consequent'])

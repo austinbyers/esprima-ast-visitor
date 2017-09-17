@@ -9,5 +9,6 @@ script:
   - coverage run visitor_test.py
   - coverage report  # Required coverage threshold in .coveragerc
   - find . -name '*.py' -not -path './venv/*' -exec pylint '{}' +
+  - mypy .
 after_success:
   - coveralls

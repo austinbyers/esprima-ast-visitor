@@ -3,4 +3,4 @@ source=.
 omit=venv/*
 
 [report]
-fail_under=97
+fail_under=100

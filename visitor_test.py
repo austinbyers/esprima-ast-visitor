@@ -26,8 +26,8 @@ class TestTraverse(unittest.TestCase):
                 expected_types.append(words[1].strip(',').strip('"'))
 
         # Traverse the AST, keeping track of node types.
-        found_types = [
-            n['type'] for n in visitor.traverse(json.loads(ast_string))]
+        node = visitor.Program(json.loads(ast_string))
+        found_types = [n.type for n in node.traverse()]
 
         self.assertEqual(expected_types, found_types)
 
@@ -70,8 +70,7 @@ class TestTraverse(unittest.TestCase):
     def test_unexpected_node_type(self):
         """Verify traversal failure for an unknown node type."""
         with self.assertRaises(visitor.UnknownNodeTypeError):
-            for _ in visitor.traverse({'type': 'FakeNodeType'}):
-                pass
+            n = visitor.objectify({'type': 'FakeNodeType'})
 
 if __name__ == '__main__':
     unittest.main()

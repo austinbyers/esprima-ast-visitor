@@ -1,215 +1,243 @@
-"""Esprima AST Node Visitor.
+import abc
+import hashlib
 
-Usage:
-    for node in traverse(json.loads(esprima_ast_string)):
-        print(node['type'])
-        # Do other work with node
-"""
-# Austin Byers, 2016
 
 class UnknownNodeTypeError(Exception):
     """Raised if we encounter a node with an unknown type."""
     pass
 
-def traverse(node):
-    """Recursive pre-order AST traversal.
 
-    Args:
-        node: A dictionary representing an Esprima AST node.
-    """
-    yield node
+def objectify(data):
+    if data is None:
+        return None
+    if isinstance(data, dict):
+        if 'type' not in data:
+            return data
+        node_class = globals().get(data['type'])
+        if not node_class:
+            raise UnknownNodeTypeError("Unknown type: " + data['type'])
+        return node_class(data)
+    if isinstance(data, list):
+        return [objectify(x) for x in data]
+    return data
 
-    child_generator = globals().get('_traverse_' + node['type'])
-    if child_generator is not None:
-        yield from child_generator(node)
-    else:
-        raise UnknownNodeTypeError(node['type'])
 
-# ~~~~~ AST Spec: https://github.com/estree/estree/blob/master/spec.md ~~~~~
-def _traverse_Identifier(node):
-    yield from ()
+class Node(abc.ABC):
 
-def _traverse_Literal(node):
-    yield from ()
+    @abc.abstractproperty
+    def fields(self):
+        return []
 
-def _traverse_Program(node):
-    for b in node['body']:
-        yield from traverse(b)
+    def __init__(self, data):
+        for field in self.fields:
+            setattr(self, field, objectify(data.get(field)))
 
-##### Statements #####
-def _traverse_ExpressionStatement(node):
-    yield from traverse(node['expression'])
+    def traverse(self):
+        yield self
+        for field in self.fields:
+            val = getattr(self, field)
+            if isinstance(val, Node):
+                yield from val.traverse()
+            elif isinstance(val, list):
+                for x in val:
+                    yield from x.traverse()
 
-def _traverse_BlockStatement(node):
-    for b in node['body']:
-        yield from traverse(b)
+    @property
+    def type(self):
+        return self.__class__.__name__
 
-def _traverse_EmptyStatement(node):
-    yield from ()
+    def type_digest(self):
+        sha = hashlib.sha256()
+        for n in self.traverse():
+            sha.update(n.type.encode('utf-8'))
+        return sha.hexdigest()
 
-def _traverse_DebuggerStatement(node):
-    yield from ()
 
-def _traverse_WithStatement(node):
-    yield from traverse(node['object'])
-    yield from traverse(node['body'])
+class Program(Node):
+    @property
+    def fields(self): return ['body']
 
-### Control Flow ###
-def _traverse_ReturnStatement(node):
-    if node['argument'] is not None:
-        yield from traverse(node['argument'])
 
-def _traverse_LabeledStatement(node):
-    yield from traverse(node['label'])
-    yield from traverse(node['body'])
+class BlockStatement(Node):
+    @property
+    def fields(self): return ['body']
 
-def _traverse_BreakStatement(node):
-    if node['label'] is not None:
-        yield from traverse(node['label'])
 
-def _traverse_ContinueStatement(node):
-    if node['label'] is not None:
-        yield from traverse(node['label'])
+class BreakStatement(Node):
+    @property
+    def fields(self): return ['label']
 
-### Choice ###
-def _traverse_IfStatement(node):
-    yield from traverse(node['test'])
-    yield from traverse(node['consequent'])
-    if node['alternate'] is not None:
-        yield from traverse(node['alternate'])
 
-def _traverse_SwitchStatement(node):
-    yield from traverse(node['discriminant'])
-    for c in node['cases']:
-        yield from traverse(c)
+class ContinueStatement(Node):
+    @property
+    def fields(self): return ['label']
 
-def _traverse_SwitchCase(node):
-    if node['test'] is not None:
-        yield from traverse(node['test'])
-    for c in node['consequent']:
-        yield from traverse(c)
 
-### Exceptions ###
-def _traverse_ThrowStatement(node):
-    yield from traverse(node['argument'])
+class DoWhileStatement(Node):
+    @property
+    def fields(self): return ['body', 'test']
 
-# Note: the "guardedHandlers" and "handlers" fields aren't in the spec.
-def _traverse_TryStatement(node):
-    yield from traverse(node['block'])
-    for h in node['guardedHandlers']:
-        yield from traverse(h)
-    for h in node['handlers']:
-        yield from traverse(h)
-    if node['handler'] is not None:
-        yield from traverse(node['handler'])
-    if node['finalizer'] is not None:
-        yield from traverse(node['finalizer'])
 
-def _traverse_CatchClause(node):
-    yield from traverse(node['param'])
-    yield from traverse(node['body'])
+class EmptyStatement(Node):
+    @property
+    def fields(self): return []
 
-### Loops ###
-def _traverse_WhileStatement(node):
-    yield from traverse(node['test'])
-    yield from traverse(node['body'])
 
-def _traverse_DoWhileStatement(node):
-    yield from traverse(node['body'])
-    yield from traverse(node['test'])
+class ExpressionStatement(Node):
+    @property
+    def fields(self): return ['expression']
 
-def _traverse_ForStatement(node):
-    if node['init'] is not None:
-        yield from traverse(node['init'])
-    if node['test'] is not None:
-        yield from traverse(node['test'])
-    if node['update'] is not None:
-        yield from traverse(node['update'])
-    yield from traverse(node['body'])
 
-def _traverse_ForInStatement(node):
-    yield from traverse(node['left'])
-    yield from traverse(node['right'])
-    yield from traverse(node['body'])
+class ForStatement(Node):
+    @property
+    def fields(self): return ['init', 'test', 'update', 'body']
 
-##### Declarations #####
-def _traverse_FunctionDeclaration(node):
-    yield from traverse(node['id'])
-    for p in node['params']:
-        yield from traverse(p)
-    yield from traverse(node['body'])
 
-def _traverse_VariableDeclaration(node):
-    for d in node['declarations']:
-        yield from traverse(d)
+class ForInStatement(Node):
+    @property
+    def fields(self): return ['left', 'right', 'body']
 
-def _traverse_VariableDeclarator(node):
-    yield from traverse(node['id'])
-    if node['init'] is not None:
-        yield from traverse(node['init'])
 
-##### Expressions #####
-def _traverse_ThisExpression(node):
-    yield from ()
+class IfStatement(Node):
+    @property
+    def fields(self): return ['test', 'consequent', 'alternate']
 
-def _traverse_ArrayExpression(node):
-    for e in node['elements']:
-        yield from traverse(e)
 
-def _traverse_ObjectExpression(node):
-    for p in node['properties']:
-        yield from traverse(p)
+class LabeledStatement(Node):
+    @property
+    def fields(self): return ['label', 'body']
 
-def _traverse_Property(node):
-    yield from traverse(node['key'])
-    yield from traverse(node['value'])
 
-def _traverse_FunctionExpression(node):
-    if node['id'] is not None:
-        yield from traverse(node['id'])
-    for p in node['params']:
-        yield from traverse(p)
-    yield from traverse(node['body'])
+class ReturnStatement(Node):
+    @property
+    def fields(self): return ['argument']
 
-### Unary Operations ###
-def _traverse_UnaryExpression(node):
-    yield from traverse(node['argument'])
 
-def _traverse_UpdateExpression(node):
-    yield from traverse(node['argument'])
+class SwitchStatement(Node):
+    @property
+    def fields(self): return ['discriminant', 'cases']
 
-### Binary Operations ###
-def _traverse_BinaryExpression(node):
-    yield from traverse(node['left'])
-    yield from traverse(node['right'])
 
-def _traverse_AssignmentExpression(node):
-    yield from traverse(node['left'])
-    yield from traverse(node['right'])
+class ThrowStatement(Node):
+    @property
+    def fields(self): return ['argument']
 
-def _traverse_LogicalExpression(node):
-    yield from traverse(node['left'])
-    yield from traverse(node['right'])
 
-def _traverse_MemberExpression(node):
-    yield from traverse(node['object'])
-    yield from traverse(node['property'])
+class TryStatement(Node):
+    @property
+    def fields(self): return ['block', 'guardedHandlers', 'handlers', 'handler', 'finalizer']
 
-# Note: The spec actually puts the altnerate before the consequent.
-# We use the form that Esprima generates.
-def _traverse_ConditionalExpression(node):
-    yield from traverse(node['test'])
-    yield from traverse(node['consequent'])
-    yield from traverse(node['alternate'])
 
-def _traverse_CallExpression(node):
-    yield from traverse(node['callee'])
-    for a in node['arguments']:
-        yield from traverse(a)
+class WhileStatement(Node):
+    @property
+    def fields(self): return ['test', 'body']
 
-def _traverse_NewExpression(node):
-    yield from _traverse_CallExpression(node)
 
-def _traverse_SequenceExpression(node):
-    for e in node['expressions']:
-        yield from traverse(e)
+class ArrayExpression(Node):
+    @property
+    def fields(self): return ['elements']
+
+
+class AssignmentExpression(Node):
+    @property
+    def fields(self): return ['operator', 'left', 'right']
+
+
+class BinaryExpression(Node):
+    @property
+    def fields(self): return ['operator', 'left', 'right']
+
+
+class CallExpression(Node):
+    @property
+    def fields(self): return ['callee', 'arguments']
+
+
+class ConditionalExpression(Node):
+    @property
+    def fields(self): return ['test', 'consequent', 'alternate']
+
+
+class FunctionExpression(Node):
+    @property
+    def fields(self): return ['id', 'params', 'body']
+
+
+class MemberExpression(Node):
+    @property
+    def fields(self): return ['object', 'property', 'computed']
+
+
+class LogicalExpression(Node):
+    @property
+    def fields(self): return ['operator', 'left', 'right']
+
+
+class NewExpression(Node):
+    @property
+    def fields(self): return ['callee', 'arguments']
+
+
+class ObjectExpression(Node):
+    @property
+    def fields(self): return ['properties']
+
+
+class SequenceExpression(Node):
+    @property
+    def fields(self): return ['expressions']
+
+
+class ThisExpression(Node):
+    @property
+    def fields(self): return []
+
+
+class UnaryExpression(Node):
+    @property
+    def fields(self): return ['operator', 'prefix', 'argument']
+
+
+class UpdateExpression(Node):
+    @property
+    def fields(self): return ['operator', 'argument', 'prefix']
+
+
+class FunctionDeclaration(Node):
+    @property
+    def fields(self): return ['id', 'params', 'body']
+
+
+class VariableDeclaration(Node):
+    @property
+    def fields(self): return ['declarations']
+
+
+class VariableDeclarator(Node):
+    @property
+    def fields(self): return ['id', 'init']
+
+
+class Identifier(Node):
+    @property
+    def fields(self): return ['name']
+
+
+class Literal(Node):
+    @property
+    def fields(self): return ['value', 'regex']
+
+
+class Property(Node):
+    @property
+    def fields(self): return ['key', 'value', 'kind']
+
+
+class CatchClause(Node):
+    @property
+    def fields(self): return ['param', 'body']
+
+
+class SwitchCase(Node):
+    @property
+    def fields(self): return ['test', 'consequent']

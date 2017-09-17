@@ -13,7 +13,7 @@ JSON.stringify(esprima.parse(js_string), null, 2);
 ```
 
 ## AST Format
-Esprima's AST follows a [standard format](https://github.com/estree/estree/blob/master/spec.md) specified by the [ESTree project](https://github.com/estree/estree).
+Esprima's AST follows a [standard format](https://github.com/estree/estree/blob/master/es5.md) specified by the [ESTree project](https://github.com/estree/estree).
 While there are other nodejs projects that provide Esprima AST traversal
 (e.g. [estraverse](https://github.com/estools/estraverse)), I was unable
 to find an equivalent Python tool. So I made one myself!
@@ -21,11 +21,17 @@ to find an equivalent Python tool. So I made one myself!
 ## Usage
 ```python
 import json
+
 import visitor
 
-for node in visitor.traverse(json.loads(esprima_ast_string)):
-    print(node['type'])
-    # Do other work with node...
+ast = json.loads(esprima_ast_string)
+program = visitor.objectify(ast)
+
+print(program.type)  # 'Program'
+print(program.type_digest)  # SHA256 over all node types in order
+
+for node in program.traverse():
+	print(node.type)
 ```
 
 ## Testing

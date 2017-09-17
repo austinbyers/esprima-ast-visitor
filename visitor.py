@@ -1,4 +1,5 @@
 import abc
+import collections
 import hashlib
 
 
@@ -32,6 +33,18 @@ class Node(abc.ABC):
         for field in self.fields:
             setattr(self, field, objectify(data.get(field)))
 
+    def dict(self):
+        result = collections.OrderedDict({'type': self.type})
+        for field in self.fields:
+            val = getattr(self, field)
+            if isinstance(val, Node):
+                result[field] = val.dict()
+            elif isinstance(val, list):
+                result[field] = [x.dict() for x in val]
+            else:
+                result[field] = val
+        return result
+
     def traverse(self):
         yield self
         for field in self.fields:
@@ -53,14 +66,64 @@ class Node(abc.ABC):
         return sha.hexdigest()
 
 
+# --- AST spec: https://github.com/estree/estree/blob/master/es5.md ---
+# pylint: disable=missing-docstring,multiple-statements
+
+
+class Identifier(Node):
+    @property
+    def fields(self): return ['name']
+
+
+class Literal(Node):
+    @property
+    def fields(self): return ['value', 'regex']
+
+
 class Program(Node):
     @property
     def fields(self): return ['body']
 
 
+# ========== Statements ==========
+
+
+class ExpressionStatement(Node):
+    @property
+    def fields(self): return ['expression']
+
+
 class BlockStatement(Node):
     @property
     def fields(self): return ['body']
+
+
+class EmptyStatement(Node):
+    @property
+    def fields(self): return []
+
+
+class DebuggerStatement(Node):
+    @property
+    def fields(self): return []
+
+
+class WithStatement(Node):
+    @property
+    def fields(self): ['object', 'body']
+
+
+# ----- Control Flow -----
+
+
+class ReturnStatement(Node):
+    @property
+    def fields(self): return ['argument']
+
+
+class LabeledStatement(Node):
+    @property
+    def fields(self): return ['label', 'body']
 
 
 class BreakStatement(Node):
@@ -73,29 +136,7 @@ class ContinueStatement(Node):
     def fields(self): return ['label']
 
 
-class DoWhileStatement(Node):
-    @property
-    def fields(self): return ['body', 'test']
-
-
-class EmptyStatement(Node):
-    @property
-    def fields(self): return []
-
-
-class ExpressionStatement(Node):
-    @property
-    def fields(self): return ['expression']
-
-
-class ForStatement(Node):
-    @property
-    def fields(self): return ['init', 'test', 'update', 'body']
-
-
-class ForInStatement(Node):
-    @property
-    def fields(self): return ['left', 'right', 'body']
+# ----- Choice -----
 
 
 class IfStatement(Node):
@@ -103,19 +144,17 @@ class IfStatement(Node):
     def fields(self): return ['test', 'consequent', 'alternate']
 
 
-class LabeledStatement(Node):
-    @property
-    def fields(self): return ['label', 'body']
-
-
-class ReturnStatement(Node):
-    @property
-    def fields(self): return ['argument']
-
-
 class SwitchStatement(Node):
     @property
     def fields(self): return ['discriminant', 'cases']
+
+
+class SwitchCase(Node):
+    @property
+    def fields(self): return ['test', 'consequent']
+
+
+# ----- Exceptions -----
 
 
 class ThrowStatement(Node):
@@ -128,79 +167,35 @@ class TryStatement(Node):
     def fields(self): return ['block', 'guardedHandlers', 'handlers', 'handler', 'finalizer']
 
 
+class CatchClause(Node):
+    @property
+    def fields(self): return ['param', 'body']
+
+
+# ----- Loops -----
+
+
 class WhileStatement(Node):
     @property
     def fields(self): return ['test', 'body']
 
 
-class ArrayExpression(Node):
+class DoWhileStatement(Node):
     @property
-    def fields(self): return ['elements']
+    def fields(self): return ['body', 'test']
 
 
-class AssignmentExpression(Node):
+class ForStatement(Node):
     @property
-    def fields(self): return ['operator', 'left', 'right']
+    def fields(self): return ['init', 'test', 'update', 'body']
 
 
-class BinaryExpression(Node):
+class ForInStatement(Node):
     @property
-    def fields(self): return ['operator', 'left', 'right']
+    def fields(self): return ['left', 'right', 'body']
 
 
-class CallExpression(Node):
-    @property
-    def fields(self): return ['callee', 'arguments']
-
-
-class ConditionalExpression(Node):
-    @property
-    def fields(self): return ['test', 'consequent', 'alternate']
-
-
-class FunctionExpression(Node):
-    @property
-    def fields(self): return ['id', 'params', 'body']
-
-
-class MemberExpression(Node):
-    @property
-    def fields(self): return ['object', 'property', 'computed']
-
-
-class LogicalExpression(Node):
-    @property
-    def fields(self): return ['operator', 'left', 'right']
-
-
-class NewExpression(Node):
-    @property
-    def fields(self): return ['callee', 'arguments']
-
-
-class ObjectExpression(Node):
-    @property
-    def fields(self): return ['properties']
-
-
-class SequenceExpression(Node):
-    @property
-    def fields(self): return ['expressions']
-
-
-class ThisExpression(Node):
-    @property
-    def fields(self): return []
-
-
-class UnaryExpression(Node):
-    @property
-    def fields(self): return ['operator', 'prefix', 'argument']
-
-
-class UpdateExpression(Node):
-    @property
-    def fields(self): return ['operator', 'argument', 'prefix']
+# ========== Declarations ==========
 
 
 class FunctionDeclaration(Node):
@@ -218,14 +213,23 @@ class VariableDeclarator(Node):
     def fields(self): return ['id', 'init']
 
 
-class Identifier(Node):
-    @property
-    def fields(self): return ['name']
+
+# ========== Expressions ==========
 
 
-class Literal(Node):
+class ThisExpression(Node):
     @property
-    def fields(self): return ['value', 'regex']
+    def fields(self): return []
+
+
+class ArrayExpression(Node):
+    @property
+    def fields(self): return ['elements']
+
+
+class ObjectExpression(Node):
+    @property
+    def fields(self): return ['properties']
 
 
 class Property(Node):
@@ -233,11 +237,56 @@ class Property(Node):
     def fields(self): return ['key', 'value', 'kind']
 
 
-class CatchClause(Node):
+class FunctionExpression(Node):
     @property
-    def fields(self): return ['param', 'body']
+    def fields(self): return ['id', 'params', 'body']
 
 
-class SwitchCase(Node):
+class UnaryExpression(Node):
     @property
-    def fields(self): return ['test', 'consequent']
+    def fields(self): return ['operator', 'prefix', 'argument']
+
+
+class UpdateExpression(Node):
+    @property
+    def fields(self): return ['operator', 'argument', 'prefix']
+
+
+class BinaryExpression(Node):
+    @property
+    def fields(self): return ['operator', 'left', 'right']
+
+
+class AssignmentExpression(Node):
+    @property
+    def fields(self): return ['operator', 'left', 'right']
+
+
+class LogicalExpression(Node):
+    @property
+    def fields(self): return ['operator', 'left', 'right']
+
+
+class MemberExpression(Node):
+    @property
+    def fields(self): return ['object', 'property', 'computed']
+
+
+class ConditionalExpression(Node):
+    @property
+    def fields(self): return ['test', 'consequent', 'alternate']
+
+
+class CallExpression(Node):
+    @property
+    def fields(self): return ['callee', 'arguments']
+
+
+class NewExpression(Node):
+    @property
+    def fields(self): return ['callee', 'arguments']
+
+
+class SequenceExpression(Node):
+    @property
+    def fields(self): return ['expressions']

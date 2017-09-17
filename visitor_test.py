@@ -31,6 +31,9 @@ class TestTraverse(unittest.TestCase):
 
         self.assertEqual(expected_types, found_types)
 
+        with open('save.json', 'w') as f:
+            f.write(json.dumps(node.dict(), indent=2))
+
     def test_amazon(self):
         self._test_ast_file('test_ast/amazon.ast.gz')
 

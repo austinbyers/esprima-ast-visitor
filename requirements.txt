@@ -1,0 +1,4 @@
+coveralls
+coverage
+mypy==0.521
+pylint==1.7.2

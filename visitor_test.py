@@ -13,10 +13,10 @@ class TestTraverse(unittest.TestCase):
     including popular libraries and code served by the Alexa top 10.
     """
 
-    def _test_ast_file(self, path):
+    def _test_ast_file(self, path: str) -> None:
         """Traverse the AST specified in the given test file."""
-        with gzip.open(path, 'rt') as f:
-            ast_string = f.read()
+        with gzip.open(path, 'rt') as ast_file:
+            ast_string = ast_file.read()
 
         # The expected traversal is given by the layout of the JSON file.
         expected_types = []
@@ -26,10 +26,17 @@ class TestTraverse(unittest.TestCase):
                 expected_types.append(words[1].strip(',').strip('"'))
 
         # Traverse the AST, keeping track of node types.
-        found_types = [
-            n['type'] for n in visitor.traverse(json.loads(ast_string))]
+        node = visitor.Program(json.loads(ast_string))
+        found_types = [n.type for n in node.traverse()]
 
         self.assertEqual(expected_types, found_types)
+
+        # Dump the node back to a dict and make sure it parses again the same way.
+        reparsed = visitor.Program(node.dict())
+        newfound_types = [n.type for n in reparsed.traverse()]
+        self.assertEqual(expected_types, newfound_types)
+
+    # pylint: disable=missing-docstring
 
     def test_amazon(self):
         self._test_ast_file('test_ast/amazon.ast.gz')
@@ -67,11 +74,24 @@ class TestTraverse(unittest.TestCase):
     def test_yahoo(self):
         self._test_ast_file('test_ast/yahoo.ast.gz')
 
+    def test_remaining(self):
+        """Test any node types which weren't already covered."""
+        data = {
+            'type': 'WithStatement',
+            'object': None,
+            'body': {
+                'type': 'DebuggerStatement'
+            }
+        }
+        node = visitor.objectify(data)
+        self.assertEqual(
+            ['WithStatement', 'DebuggerStatement'], [n.type for n in node.traverse()])
+
     def test_unexpected_node_type(self):
         """Verify traversal failure for an unknown node type."""
         with self.assertRaises(visitor.UnknownNodeTypeError):
-            for _ in visitor.traverse({'type': 'FakeNodeType'}):
-                pass
+            visitor.objectify({'type': 'FakeNodeType'})
+
 
 if __name__ == '__main__':
     unittest.main()

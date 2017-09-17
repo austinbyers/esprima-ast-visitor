@@ -1,0 +1,14 @@
+language: python
+cache: pip
+python: "3.6"
+notifications:
+  email: false
+install:
+  - pip3 install -r requirements.txt
+script:
+  - coverage run visitor_test.py
+  - coverage report  # Required coverage threshold in .coveragerc
+  - find . -name '*.py' -not -path './venv/*' -exec pylint '{}' +
+  - mypy .
+after_success:
+  - coveralls

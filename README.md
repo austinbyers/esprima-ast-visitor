@@ -3,7 +3,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/austinbyers/esprima-ast-visitor/badge.svg?branch=master)](https://coveralls.io/github/austinbyers/esprima-ast-visitor?branch=master)
 
 
-This is a Python3 module for transforming an Esprima AST into a traversable Python object.
+This is a Python3.5+ module for transforming an Esprima AST into a traversable Python object.
 
 ## JavaScript Parsing with Esprima
 [Esprima](http://esprima.org/) is a popular state-of-the-art JavaScript parser.
@@ -28,18 +28,19 @@ import json
 import visitor
 
 ast = json.loads(esprima_ast_string)
-program = visitor.objectify(ast)
+program = visitor.objectify(ast)  # visitor.Node object
 
 for node in program.traverse():
-	print(node.type)
-	# Replace all return statements with return None
-	if node.type == 'ReturnStatement':
-		node.argument = None
+    print(node.type)
+    # Replace all return statements with 'return null'
+    if node.type == 'ReturnStatement':
+        node.argument = None
 
 # Save modified tree back to JSON format
 with open('modified_ast.json', 'w') as f:
     f.write(json.dumps(node.dict(), indent=2))
 ```
+
 
 ## Testing
 The AST traversal has been tested with a dozen of the most complex real-world

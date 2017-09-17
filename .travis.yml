@@ -1,0 +1,6 @@
+language: python
+python: "3.6"
+notifications:
+  email: false
+script:
+  - python3 visitor_test.py

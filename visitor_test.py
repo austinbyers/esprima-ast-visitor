@@ -32,7 +32,7 @@ class TestTraverse(unittest.TestCase):
         self.assertEqual(expected_types, found_types)
 
         # Dump the node back to a dict and make sure it parses again the same way.
-        reparsed = visitor.objectify(node.dict())
+        reparsed = visitor.Program(node.dict())
         newfound_types = [n.type for n in reparsed.traverse()]
         self.assertEqual(expected_types, newfound_types)
 

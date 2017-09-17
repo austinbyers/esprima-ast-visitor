@@ -1,6 +1,9 @@
 # Esprima AST Visitor
+[![Build Status](https://travis-ci.org/austinbyers/esprima-ast-visitor.svg?branch=master)](https://travis-ci.org/austinbyers/esprima-ast-visitor)
+[![Coverage Status](https://coveralls.io/repos/github/austinbyers/esprima-ast-visitor/badge.svg?branch=master)](https://coveralls.io/github/austinbyers/esprima-ast-visitor?branch=master)
 
-This provides a simple Python3 module for pre-order traversal of an Esprima AST.
+
+This is a Python3 module for transforming an Esprima AST into a traversable Python object.
 
 ## JavaScript Parsing with Esprima
 [Esprima](http://esprima.org/) is a popular state-of-the-art JavaScript parser.
@@ -27,11 +30,15 @@ import visitor
 ast = json.loads(esprima_ast_string)
 program = visitor.objectify(ast)
 
-print(program.type)  # 'Program'
-print(program.type_digest)  # SHA256 over all node types in order
-
 for node in program.traverse():
 	print(node.type)
+	# Replace all return statements with return None
+	if node.type == 'ReturnStatement':
+		node.argument = None
+
+# Save modified tree back to JSON format
+with open('modified_ast.json', 'w') as f:
+    f.write(json.dumps(node.dict(), indent=2))
 ```
 
 ## Testing
@@ -39,4 +46,15 @@ The AST traversal has been tested with a dozen of the most complex real-world
 JavaScript samples, including popular libraries like JQuery and Sugar and code
 served by the Alexa top 10 sites.
 
-`python3 visitor_test.py`
+To run unit tests, test coverage, linting, and type-checking:
+
+```bash
+
+$ virtualenv -p python3 venv
+$ source venv/bin/activate
+$ pip3 install -r requirements.txt
+$ coverage run visitor_test.py  # Unit tests
+$ coverage report  # Should show 100%
+$ find . -name '*.py' -not -path './venv/*' -exec pylint '{}' +
+$ mypy .  # Static type-checking
+```

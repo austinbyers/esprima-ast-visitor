@@ -1,4 +1,4 @@
-# Esprima AST Visitor
+# Esprima Abstract Syntax Tree (AST) Visitor
 [![Build Status](https://travis-ci.org/austinbyers/esprima-ast-visitor.svg?branch=master)](https://travis-ci.org/austinbyers/esprima-ast-visitor)
 [![Coverage Status](https://coveralls.io/repos/github/austinbyers/esprima-ast-visitor/badge.svg?branch=master)](https://coveralls.io/github/austinbyers/esprima-ast-visitor?branch=master)
 
@@ -41,6 +41,76 @@ with open('modified_ast.json', 'w') as f:
     f.write(json.dumps(node.dict(), indent=2))
 ```
 
+## `Node` Properties
+Every component of the parsed AST is a subclass of `visitor.Node`. Every node has the following properties:
+
+```python
+node = visitor.objectify('your-json-ast-string')
+
+node.fields      # List of available attributes for this specific node (e.g. ['key', 'value']).
+                 #     Node fields can be accessed directly (e.g. node.key, node.value)
+node.type        # Class name (e.g. "Program" or "VariableDeclarator")
+node.dict()      # Transform Node back into an AST dictionary
+node.traverse()  # Pre-order traversal of this node and its children (which may also be Node objects)
+```
+
+## A Complete Example
+Suppose we want to traverse the following JS code:
+
+```js
+var map = {'abc': 123}
+```
+
+First, we can use Esprima to get the AST (in JSON) format, like so:
+```bash
+$ npm install esprima
+$ node
+> var esprima = require('esprima');
+> var fs = require('fs');
+> ast_string = JSON.stringify(esprima.parse("var map = {'abc': 123}"), null, 2);
+> fs.writeFile('test.json', ast_string, null);
+```
+
+Then, we can load it into traversable Node objects:
+
+```python
+import json
+import visitor  # references visitor.py in this repo
+
+with open('test.json') as f:
+    ast = json.loads(f.read())
+    
+program = visitor.objectify(ast)  # visitor.Node object
+```
+
+At this point, `program` represents a hierarchy of `Node` subclasses:
+
+```
+Program
+    .body: [VariableDeclaration]
+        .declarations: [VariableDeclarator]
+            .id: Identifier
+                .name: "map"
+            .init: ObjectExpression
+                .properties: [Property]
+                    .key: Literal
+                        .value: "abc"
+                    .value: Literal
+                        .value: 123
+```
+
+Suppose we wanted to change `{'abc': 123}` to `{'new-key': 123}`:
+
+```python
+object_exp = program.body[0].declarations[0].init  # ObjectExpression
+object_exp.properties[0].key.value = "new-key"
+
+# Write out the modified AST
+with open('test-modified.json', 'w') as f:
+    f.write(json.dumps(program.dict(), indent=2))
+```
+
+Finally, the new AST can be turned back into JS code with `esprima` or other tools.
 
 ## Testing
 The AST traversal has been tested with a dozen of the most complex real-world

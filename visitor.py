@@ -20,6 +20,9 @@ class Node(abc.ABC):
         for field in self.fields:
             setattr(self, field, objectify(data.get(field)))
 
+        self.range = data.get('range')
+        self.loc = data.get('loc')
+
     def dict(self) -> Dict[str, Any]:
         """Transform the Node back into an Esprima-compatible AST dictionary."""
         result = OrderedDict({'type': self.type})  # type: Dict[str, Any]
@@ -31,6 +34,10 @@ class Node(abc.ABC):
                 result[field] = [x.dict() for x in val]
             else:
                 result[field] = val
+        if self.range is not None:
+            result['range'] = self.range
+        if self.loc is not None:
+            result['loc'] = self.loc
         return result
 
     def traverse(self) -> Generator['Node', None, None]:
@@ -90,9 +97,6 @@ class Literal(Node):
 class BigIntLiteral(Node):
     @property
     def fields(self): return ['value', 'bigint']
-
-
-
 
 
 class Program(Node):
@@ -340,9 +344,6 @@ class AwaitExpression(Node):
 class ImportExpression(Node):
     @property
     def fields(self): return ['source']
-
-
-
 
 
 # ========== Functions ==========

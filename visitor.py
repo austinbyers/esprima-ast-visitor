@@ -85,6 +85,14 @@ class Identifier(Node):
 class Literal(Node):
     @property
     def fields(self): return ['value', 'regex']
+    
+    
+class BigIntLiteral(Node):
+    @property
+    def fields(self): return ['value', 'bigint']
+
+
+
 
 
 class Program(Node):
@@ -204,7 +212,7 @@ class ForInStatement(Node):
 
 class ForOfStatement(Node):
     @property
-    def fields(self): return ['left', 'right', 'body']
+    def fields(self): return ['left', 'right', 'body', 'await']
 
 
 # ========== Declarations ==========
@@ -316,7 +324,7 @@ class SpreadElement(Node):
 
 class ArrowFunctionExpression(Node):
     @property
-    def fields(self): return ['body', 'expression']
+    def fields(self): return ['id', 'params', 'body', 'expression', 'generator', 'async']
     
 
 class YieldExpression(Node):
@@ -324,12 +332,25 @@ class YieldExpression(Node):
     def fields(self): return ['argument', 'delegate']
 
 
+class AwaitExpression(Node):
+    @property
+    def fields(self): return ['argument']
+    
+    
+class ImportExpression(Node):
+    @property
+    def fields(self): return ['source']
+
+
+
+
+
 # ========== Functions ==========
 
 
 class Function(Node):
     @property
-    def fields(self): return ['generator']
+    def fields(self): return ['id', 'params', 'body', 'generator', 'async']
 
 
 # ========== Template Literals ==========
@@ -455,7 +476,7 @@ class ExportSpecifier(Node):
 
 class AnonymousDefaultExportedFunctionDeclaration(Node):
     @property
-    def fields(self): return ['id', 'generator']
+    def fields(self): return ['id', 'params', 'body', 'generator', 'async']
 
 
 class AnonymousDefaultExportedClassDeclaration(Node):

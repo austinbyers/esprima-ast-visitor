@@ -220,7 +220,7 @@ class ForOfStatement(Node):
 
 class FunctionDeclaration(Node):
     @property
-    def fields(self): return ['id', 'params', 'body']
+    def fields(self): return ['id', 'params', 'body', 'async', 'generator']
 
 
 class VariableDeclaration(Node):
@@ -259,7 +259,7 @@ class Property(Node):
 
 class FunctionExpression(Node):
     @property
-    def fields(self): return ['id', 'params', 'body']
+    def fields(self): return ['id', 'params', 'body', 'generator', 'async']
 
 
 class UnaryExpression(Node):
